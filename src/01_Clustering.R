@@ -146,11 +146,11 @@ plotPDF(grid.arrange(top="ATAC", tableGrob(atac_clusters)),
         grid.arrange(top="Combined", tableGrob(combined_clusters)),name = "Table-scATAC-scRNA-Combined", addDOC = FALSE)
 
 # plot dimensionality reductioins
-p1_ATAC <- plotEmbedding(projMulti_filtered, name = "Clusters_ATAC", embedding = "UMAP_ATAC", size = 0.1, labelAsFactors=F, labelMeans=F)
-p1 <- plotEmbedding(projMulti_filtered, name = "Clusters_Combined", embedding = "UMAP_ATAC", size = 0.1, labelAsFactors=F, labelMeans=F)
-p2_RNA <- plotEmbedding(projMulti_filtered, name = "Clusters_RNA", embedding = "UMAP_RNA", size = 0.1, labelAsFactors=F, labelMeans=F)
-p2 <- plotEmbedding(projMulti_filtered, name = "Clusters_Combined", embedding = "UMAP_RNA", size = 0.1, labelAsFactors=F, labelMeans=F)
-p3 <- plotEmbedding(projMulti_filtered, name = "Clusters_Combined", embedding = "UMAP_Combined", size = 0.1, labelAsFactors=F, labelMeans=F)
+p1_ATAC <- plotEmbedding(projMulti_filtered, name = "Clusters_ATAC", embedding = "UMAP_ATAC", size = 0.1)
+p1 <- plotEmbedding(projMulti_filtered, name = "Clusters_Combined", embedding = "UMAP_ATAC", size = 0.1)
+p2_RNA <- plotEmbedding(projMulti_filtered, name = "Clusters_RNA", embedding = "UMAP_RNA", size = 0.1)
+p2 <- plotEmbedding(projMulti_filtered, name = "Clusters_Combined", embedding = "UMAP_RNA", size = 0.1)
+p3 <- plotEmbedding(projMulti_filtered, name = "Clusters_Combined", embedding = "UMAP_Combined", size = 0.1)
 
 setwd(outputdir)
 plotPDF(p1_ATAC,p1, p2_RNA,p2, p3, name = "UMAP-scATAC-scRNA-Combined", addDOC = FALSE)
