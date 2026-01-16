@@ -11,10 +11,14 @@ library(Seurat)
 library(stringr)
 library(scater)
 library(EnsDb.Hsapiens.v86)
+library(SingleCellExperiment)
 
-#inputpath<-"$path/$sample/outs"
-#outputdir<-"<-"$path/$sample/clustering"
-
+#library(ArchRtoSignac) # {Link: GitHub https://github.com/swaruplabUCI/ArchRtoSignac}
+# if (!require("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install(version = "3.22")
+# BiocManager::install("biovizBase")
+# devtools::install_github("swaruplabUCI/ArchRtoSignac", dependencies = TRUE)
 addArchRGenome("hg38")
 ## Setting default genome to Hg38.
 addArchRThreads(16)
@@ -30,8 +34,9 @@ atacFiles <- list.files(path=inputpath,pattern = "atac_fragments.tsv.gz$", full.
 rnaFiles <- list.files(path=inputpath,pattern = "filtered_feature_bc_matrix.h5$", full.names = TRUE)
 names(atacFiles)<-basename(dirname(inputpath))
 names(rnaFiles)<-basename(dirname(inputpath))
-# rnaFiles <- c("Cyt49_S0C" = list.files(path = inputpath,pattern = "filtered_feature_bc_matrix.h5$",full.names =TRUE))
-# atacFiles <- c("Cyt49_S0C" = list.files(path = inputpath,pattern = "atac_fragments.tsv.gz$",full.names =TRUE))
+# inputpath <- c("/Users/liuji/Downloads/scmultiome/Cyt49_S0C")
+# rnaFiles <- c("SEM01_S4D5" = list.files(path = inputpath,pattern = "filtered_feature_bc_matrix.h5$",full.names =TRUE))
+# atacFiles <- c("SEM01_S4D5" = list.files(path = inputpath,pattern = "atac_fragments.tsv.gz$",full.names =TRUE))
 
 #create ArrowFiles from the scATAC-seq fragment files
 Multiome_ArrowFiles <- createArrowFiles(
@@ -64,17 +69,18 @@ seRNA <- import10xFeatureMatrix(
 
 #  add this scRNA-seq data to our ArchRProject via the addGeneExpressionMatrix() function
 #length(which(getCellNames(projMulti) %ni% colnames(seRNA)))
+# length(colnames(seRNA))
 cellsToKeep <- which(getCellNames(projMulti) %in% colnames(seRNA))
 # length(cellsToKeep)
 #keep cells that pass scRNA-seq quality control and scATAC-seq quality control 
 projMulti_filtered <- subsetArchRProject(ArchRProj = projMulti, cells = getCellNames(projMulti)[cellsToKeep], 
                                          outputDirectory = outputdir, force = TRUE)
 #add the gene expression data to our project
-projMulti_filtered <- addGeneExpressionMatrix(input = projMulti_filtered, seRNA = seRNA, strictMatch = TRUE, force = TRUE)
+projMulti_filtered <- addGeneExpressionMatrix(input = projMulti_filtered, seRNA = seRNA,scaleTo = 10000, strictMatch = TRUE, force = TRUE)
 #filter out any doublets
-projMulti_filtered <- addDoubletScores(projMulti_filtered)
+#projMulti_filtered <- addDoubletScores(projMulti_filtered)
 projMulti_filtered <- addDoubletScores(
-  input = projMulti_filtered,
+  input = projMulti_filtered,force = FALSE,
   k = 10, #Refers to how many cells near a "pseudo-doublet" to count.
   knnMethod = "UMAP", #Refers to the embedding to use for nearest neighbor search with doublet projection.
   LSIMethod = 1
@@ -125,6 +131,36 @@ projMulti_filtered <- addClusters(projMulti_filtered, reducedDims = "LSI_RNA", n
 projMulti_filtered <- addClusters(projMulti_filtered, reducedDims = "LSI_Combined", name = "Clusters_Combined", resolution = 0.4, force = TRUE)
 #save project to outputdir
 projMulti_filtered <- saveArchRProject(ArchRProj = projMulti_filtered, outputDirectory = outputdir, load = TRUE)
+
+# save as single-cell experiment for single-cell-only processing
+#getAvailableMatrices(projMulti_filtered)
+# save GeneExpressionMatrix to sce format 
+gene_expr_matrix <- getMatrixFromProject(projMulti_filtered, useMatrix = "GeneExpressionMatrix")
+sce <- as(gene_expr_matrix, "SingleCellExperiment")
+# add gene names to sce rowname
+rownames(sce) <- rowData(sce)$name
+# note: GeneExpressionMatrix is scaled and raw counts is preferred for following analysis,we proceed by adding raw counts from the seRNA loading dataset
+#counts <- as.matrix(assay(sce, "GeneExpressionMatrix"))
+#length(cellsToKeepIDs)
+#subset raw counts from seRNA input by GeneExpressionMatrix geneIDs and cellIDs
+cellsToKeepIDs<-colnames(sce)
+genesToKeepIDs<-rownames(sce)
+seRNA_filtered<-seRNA[genesToKeepIDs,cellsToKeepIDs]
+#sce2 <- SingleCellExperiment(assays = list(counts = counts))
+# add raw counts from seRNA to sce derived from GeneExpressionMatrix 1) sort by genename and cellIDs 2) add as raw counts
+counts<- assay(seRNA_filtered_sorted,"data")
+counts <- counts[ rownames(sce),  colnames(sce)]
+assay(sce, "counts") <- counts
+# add log counts
+libSizes <- colSums(counts)
+sizeFactors <- libSizes/mean(libSizes)
+assays(sce)$logcounts <- log2(t(t(counts)/sizeFactors) + 1)
+#colData(sce) <- getCellColData(projMulti_filtered)
+# add dimention reduction from archR project
+reducedDim(sce, "LSI_Combined") <- getReducedDims(projMulti_filtered,"LSI_Combined")
+reducedDim(sce, "LSI_RNA") <- getReducedDims(projMulti_filtered,"LSI_RNA")
+reducedDim(sce, "LSI_ATAC") <- getReducedDims(projMulti_filtered,"LSI_ATAC")
+saveRDS(sce, file = file.path(outputdir, paste0(basename(dirname(inputpath)),".sce.rds")))
 
 
 #cell proportion for each cluster
@@ -254,4 +290,24 @@ p4<-ggplot(cellclusterscount, aes(fill=Clusters_Combined, y=COUNT, x=Clusters_RN
   labs(title="RNA-Combined")
 
 plotPDF(p1, p2, p3,p4,name = "UMAP-scATAC-scRNA-Combined-stackedbar", addDOC = FALSE)
+
+# getAvailableMatrices(projMulti_filtered)
+# proj <- addGeneIntegrationMatrix(
+#   ArchRProj = projMulti_filtered, 
+#   useMatrix = "GeneScoreMatrix",
+#   matrixName = "GeneIntegrationMatrix",
+#   reducedDims = "IterativeLSI",
+#   seRNA = seRNA,
+#   addToArrow = TRUE,
+#   groupRNA = "CellType",
+#   nameCell = "predictedCell_Un2",
+#   nameGroup = "predictedGroup_Un2",
+#   nameScore = "predictedScore_Un2",
+#   dimsToUse = 1:10,
+#   nGenes = 250,
+#   force = TRUE
+# )
+# seurat_object <- ArchRtoSeurat(ArchRProj = projMulti_filtered, useMatrix = "GeneExpressionMatrix")
+#mat <- as.matrix(assay(gene_expr_matrix))
+#seurat_mat <- CreateSeuratObject(counts = mat, project = "MyArchRProject")
 
