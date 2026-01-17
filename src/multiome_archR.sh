@@ -18,4 +18,14 @@ Rscript /cluster/home/liuji/T1D/multiome/src/R/03_PeakCalling.R $archRpath $outp
 Rscript /cluster/home/liuji/T1D/multiome/src/R/03_PeakCalling.R $archRpath $outputdir Clusters_ATAC
 Rscript /cluster/home/liuji/T1D/multiome/src/R/03_PeakCalling.R $archRpath $outputdir Clusters_RNA
 
+# Marker Identification -RNA
+archRpath=/cluster/home/liuji/T1D/multiome/analysis/$samplename/clustering
+outputdir=/cluster/home/liuji/T1D/multiome/analysis/$samplename/peakcalling/Clusters_Combined
+mkdir -p $outputdir
+Rscript /cluster/home/liuji/T1D/multiome/src/R/02_MarkerDetecction-RNA.R $archRpath $outputdir Clusters_Combined
 
+# Differential Accessbility/Peak calling for individual cluster
+archRpath=/cluster/home/liuji/T1D/multiome/analysis/$samplename/peakcalling/Clusters_Combined
+outputdir=/cluster/home/liuji/T1D/multiome/analysis/$samplename/peakcalling/Clusters_Combined
+mkdir -p $outputdir
+Rscript /cluster/home/liuji/T1D/multiome/src/R/04_DAR.R $archRpath $outputdir Clusters_Combined
