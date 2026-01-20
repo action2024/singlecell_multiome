@@ -182,26 +182,39 @@ plotPDF(grid.arrange(top="ATAC", tableGrob(atac_clusters)),
         grid.arrange(top="Combined", tableGrob(combined_clusters)),name = "Table-scATAC-scRNA-Combined", addDOC = FALSE)
 
 # plot dimensionality reductioins
+customcolor<-c("#1F77B4", "#AEC7E8", "#FF7F0E", "#FFBB78", "#2CA02C",
+               "#D62728", "#FF9896", "#9EDAE5", "#9467BD", "#98DF8A", "#C5B0D5",
+               "#8C564B", "#E377C2", "#F7B6D2", "#7F7F7F",
+               "#C7C7C7", "#BCBD22", "#DBDB8D", "#17BECF","#C49C94")
+
+# LSI_dimplot function: convert reduced dimension by LSI in dataframe format or LSI plotting (similar to PCA). 
+LSI_dimplot<-function(archRproj,selectedim,selectedclusters,dim1,dim2){
+  #selectedim<-"LSI_Combined"
+  #selectedclusters<-"Clusters_Combined"
+  #archRproj<-projMulti_filtered
+  #dim1<-"LSI1"
+  #dim2<-"LSI2"
+  rd <- getReducedDims(archRproj, reducedDims = "LSI_Combined",dimsToUse = 1:50)
+  rd <-  merge(rd,as.data.frame(getCellColData(archRproj)),by="row.names")
+  label_data <- rd %>%group_by(!!sym(selectedclusters)) %>%summarize(LSI1_mean = mean(!!sym(dim1)), LSI2_mean =mean(!!sym(dim2)))
+  plot<-ggplot(rd, aes(x = !!sym(dim1), y = !!sym(dim2), color = !!sym(selectedclusters))) +
+  geom_point(size = 0.3) +labs(title = selectedim,x = dim1, y = dim2) +theme_minimal()+scale_color_manual(values = customcolor)+
+  geom_text(data = label_data,aes(x = LSI1_mean, y = LSI2_mean, label = !!sym(selectedclusters)),size = 4,inherit.aes = FALSE)+ theme(legend.position = "bottom") + guides(color = guide_legend(override.aes = list(size = 3)))
+  return(plot)}
+
 p1_ATAC <- plotEmbedding(projMulti_filtered, name = "Clusters_ATAC", embedding = "UMAP_ATAC", size = 0.1)
 p1 <- plotEmbedding(projMulti_filtered, name = "Clusters_Combined", embedding = "UMAP_ATAC", size = 0.1)
 p2_RNA <- plotEmbedding(projMulti_filtered, name = "Clusters_RNA", embedding = "UMAP_RNA", size = 0.1)
 p2 <- plotEmbedding(projMulti_filtered, name = "Clusters_Combined", embedding = "UMAP_RNA", size = 0.1)
 p3 <- plotEmbedding(projMulti_filtered, name = "Clusters_Combined", embedding = "UMAP_Combined", size = 0.1)
 
-setwd(outputdir)
-plotPDF(p1_ATAC,p1, p2_RNA,p2, p3, name = "UMAP-scATAC-scRNA-Combined", addDOC = FALSE)
+dim1<-LSI_dimplot(projMulti_filtered,"LSI_Combined","Clusters_Combined","LSI1","LSI2")
+dim2<-LSI_dimplot(projMulti_filtered,"LSI_Combined","Clusters_Combined","LSI2","LSI3")
+dim3<-LSI_dimplot(projMulti_filtered,"LSI_Combined","Clusters_Combined","LSI3","LSI4")
 
-# p <- lapply(list(p1,p2,p3), function(x){
-#   x + guides() + 
-#     theme_ArchR(baseSize = 6.5) +
-#     theme(plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")) +
-#     theme(
-#       axis.text.x=element_blank(), 
-#       axis.ticks.x=element_blank(), 
-#       axis.text.y=element_blank(), 
-#       axis.ticks.y=element_blank()
-#     )
-# })
+setwd(outputdir)
+plotPDF(p1_ATAC,p1, p2_RNA,p2, p3,dim1,dim2,dim3, name = "UMAP_LSI-scATAC-scRNA-Combined", addDOC = FALSE)
+
 
 # visualize differences in cluster residence of cells between scATAC-seq, scRNA-seq and combined
 cM_atac_rna <- confusionMatrix(paste0(projMulti_filtered$Clusters_ATAC), paste0(projMulti_filtered$Clusters_RNA))
