@@ -53,9 +53,9 @@ customcolor<-c("#1F77B4", "#AEC7E8", "#FF7F0E", "#FFBB78", "#2CA02C",
                "#8C564B", "#E377C2", "#F7B6D2", "#7F7F7F",
                "#C7C7C7", "#BCBD22", "#DBDB8D", "#17BECF","#C49C94")
 
-inputrds<-"/cluster/home/liuji/T1D/multiome/analysis/Cyt49_S4D5/scRNAseq/Clusters_Combined.QC_filtered.normalized.rds"
-outputdir<-"/cluster/home/liuji/T1D/multiome/analysis/Cyt49_S4D5/scRNAseq"
-group<-"Clusters_Combined"
+#inputrds<-"/cluster/home/liuji/T1D/multiome/analysis/Cyt49_S4D5/scRNAseq/Clusters_Combined.QC_filtered.normalized.rds"
+#outputdir<-"/cluster/home/liuji/T1D/multiome/analysis/Cyt49_S4D5/scRNAseq"
+#group<-"Clusters_Combined"
 sce<-readRDS(inputrds)
 ######normalization######
 ####technical differences in cDNA capture or PCR amplification efficiency across cells due to minimal starting material###
